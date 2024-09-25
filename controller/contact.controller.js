@@ -11,15 +11,15 @@ const sendContactUsMail = async (firstName, lastName, email, message) => {
       secure: false,
       requireTLS: true,
       auth: {
-        user: "instalingual@gmail.com",
-        pass: "cmklfchsavcpctkj",
+        user: "support@oxygenkart.com",
+        pass: "vvheleclsdbmiwkp",
       },
     });
 
     // Define the email options
     const mailOptions = {
       from: email, // sender address (must be your Gmail address)
-      to: "uddinshahbaz156@gmail.com",
+      to: "support@oxygenkart.com",
       subject: "Contact Us Form Submission",
       text:
         `You have received a new message from your website contact form.\n\n` +
