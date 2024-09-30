@@ -2,6 +2,9 @@ const UserModel = require("../model/userModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { BlackListModel } = require("../model/blacklist");
+const admin = require("firebase-admin");
+const serviceAccount = require("../oxygenkart-3c9ef-firebase-adminsdk-omjq3-231069c64d.json");
+const { getAuth } = require("firebase-admin/auth");
 require("dotenv").config();
 
 const register = async (req, res) => {
@@ -57,6 +60,56 @@ const login = async (req, res) => {
     });
   } catch (error) {
     res.status(503).send({ msg: "Server Error", error: error.message });
+  }
+};
+
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+
+const googleAuthLogin = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    // console.log("Request body:", req.body);
+    // Verify Google access token
+    const decodeUser = await getAuth().verifyIdToken(access_token);
+    // console.log("Decoded user:", decodeUser); // Add this for debugging
+    const { email, name } = decodeUser;
+
+    // Check if user exists
+    let user = await UserModel.findOne({ email });
+    // console.log("User found:", user); // Add this for debugging
+
+    if (user) {
+      // If user exists but did not sign up with Google, restrict access
+      if (!user.google_auth) {
+        return res.status(403).send({
+          msg: "This account was signed up without Google. Please log in with email and password to access the account.",
+        });
+      }
+    } else {
+      // Create a new user if not found
+      user = new UserModel({
+        username: name,
+        email,
+        google_auth: true,
+      });
+
+      try {
+        await user.save();
+        console.log("New user created:", user); // Add this for debugging
+      } catch (err) {
+        // console.error("Error saving user:", err); // Add this for debugging
+        return res.status(500).json({ error: err.message });
+      }
+    }
+
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error("Server error:", error); // Add this for debugging
+    return res
+      .status(500)
+      .json({ error: "Failed to log in using Google. Please try again." });
   }
 };
 
@@ -165,4 +218,5 @@ module.exports = {
   getAllUser,
   getUserByEmail,
   changePassword,
+  googleAuthLogin,
 };
