@@ -1,8 +1,16 @@
 const CourseOrderModel = require("../model/CourseOrder");
+const UserModel = require("../model/userModel");
+const Razorpay = require("razorpay");
+
+// Razorpay instance
+const razorpayInstance = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 const buyOrder = async (req, res) => {
   try {
-    const userId = req.userId; // Assuming req.userId is set by some authentication middleware
+    const userId = req.userId;
     const courseId = req.params.courseId;
 
     if (!userId || !courseId) {
@@ -11,32 +19,56 @@ const buyOrder = async (req, res) => {
         .json({ error: "User ID and Course ID are required" });
     }
 
-    const newOrder = new CourseOrderModel({ userId, courseId });
+    const course = await CourseOrderModel.findById(courseId).populate(
+      "courseId"
+    );
+    if (!course) {
+      return res.status(404).json({ error: "Course not found" });
+    }
+
+    const coursePrice = course.price * 100;
+
+    const order = await razorpayInstance.orders.create({
+      amount: coursePrice,
+      currency: "INR",
+      receipt: `receipt_${Math.random().toString(36).substring(2, 9)}`,
+      payment_capture: 1,
+    });
+
+    const newOrder = new CourseOrderModel({
+      userId,
+      courseId: course._id,
+    });
     await newOrder.save();
 
-    res
-      .status(201)
-      .json({ message: "Order created successfully", order: newOrder });
+    res.status(201).json({
+      orderId: order.id,
+      currency: order.currency,
+      amount: order.amount,
+      orderDetails: newOrder,
+    });
+
+    await UserModel.findByIdAndUpdate(userId, { payment: true });
   } catch (error) {
-    res.status(500).json({ error: "Server error" });
+    console.error("Error creating order:", error);
+    res.status(500).json({ error: "Failed to create order" });
   }
 };
 
 const getOrdersByUser = async (req, res) => {
   try {
-    const orders = await CourseOrderModel.find()
+    const userId = req.userId; // Ensure this is retrieved correctly
+    const orders = await CourseOrderModel.find({ userId })
       .populate("courseId")
-      .populate("userId")
       .exec();
 
     if (!orders || orders.length === 0) {
-      console.log("No orders found");
       return res.status(404).json({ error: "No orders found" });
     }
 
     res.status(200).json({ orders });
   } catch (error) {
-    console.error("Server error:", error);
+    console.error("Error fetching orders:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
@@ -63,6 +95,7 @@ const deleteOrder = async (req, res) => {
 
     res.status(200).json({ message: "Order deleted successfully", order });
   } catch (error) {
+    console.error("Error deleting order:", error);
     res.status(500).json({ error: "Server error" });
   }
 };
