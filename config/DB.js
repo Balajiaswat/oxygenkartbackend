@@ -1,8 +1,6 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const connecttion = mongoose.connect(
-  "mongodb+srv://balajiaswat:KIL1aUQmviUYNvjI@oxygenkartcluster.6pztc.mongodb.net/oxygenData?retryWrites=true&w=majority&appName=OxygenKartCluster"
-);
+const connecttion = mongoose.connect(process.env.URL);
 
 module.exports = connecttion;
