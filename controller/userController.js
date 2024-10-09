@@ -114,12 +114,12 @@ const googleAuthLogin = async (req, res) => {
     }
     const token = await jwt.sign(
       {
-        userId: isUserPresent._id,
+        userId: user._id,
       },
       process.env.SECRET_ACCESS_KEY
     );
 
-    return res.status(200).json(user, token);
+    return res.status(200).json({ user, token });
   } catch (error) {
     console.error("Server error:", error); // Add this for debugging
     return res
