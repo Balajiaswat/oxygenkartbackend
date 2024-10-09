@@ -107,14 +107,19 @@ const googleAuthLogin = async (req, res) => {
 
       try {
         await user.save();
-        console.log("New user created:", user); // Add this for debugging
       } catch (err) {
         // console.error("Error saving user:", err); // Add this for debugging
         return res.status(500).json({ error: err.message });
       }
     }
+    const token = await jwt.sign(
+      {
+        userId: isUserPresent._id,
+      },
+      process.env.SECRET_ACCESS_KEY
+    );
 
-    return res.status(200).json(user);
+    return res.status(200).json(user, token);
   } catch (error) {
     console.error("Server error:", error); // Add this for debugging
     return res
