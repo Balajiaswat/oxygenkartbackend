@@ -1,6 +1,9 @@
+const CourseModel = require("../model/course");
 const CourseOrderModel = require("../model/CourseOrder");
 const UserModel = require("../model/userModel");
 const Razorpay = require("razorpay");
+const crypto = require("crypto");
+const PaymentModel = require("../model/Payment");
 
 // Razorpay instance
 const razorpayInstance = new Razorpay({
@@ -19,15 +22,15 @@ const buyOrder = async (req, res) => {
         .json({ error: "User ID and Course ID are required" });
     }
 
-    const course = await CourseOrderModel.findById(courseId).populate(
-      "courseId"
-    );
+    // Fetch the course from the CourseModel (not CourseOrderModel)
+    const course = await CourseModel.findById(courseId);
     if (!course) {
       return res.status(404).json({ error: "Course not found" });
     }
 
-    const coursePrice = course.price * 100;
+    const coursePrice = course.price * 100; // Convert price to paise
 
+    // Create the order with Razorpay
     const order = await razorpayInstance.orders.create({
       amount: coursePrice,
       currency: "INR",
@@ -35,23 +38,57 @@ const buyOrder = async (req, res) => {
       payment_capture: 1,
     });
 
+    // Create a new course order and save it
     const newOrder = new CourseOrderModel({
       userId,
       courseId: course._id,
     });
     await newOrder.save();
 
+    // Send the order details in the response
     res.status(201).json({
-      orderId: order.id,
+      razorpay_order_id: order.id, // Include the Razorpay order ID
       currency: order.currency,
       amount: order.amount,
       orderDetails: newOrder,
     });
-
-    await UserModel.findByIdAndUpdate(userId, { payment: true });
   } catch (error) {
     console.error("Error creating order:", error);
     res.status(500).json({ error: "Failed to create order" });
+  }
+};
+
+const courseVerifyPayment = async (req, res) => {
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } =
+    req.body;
+
+  const expectedSignature = crypto
+    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+    .digest("hex");
+
+  if (expectedSignature === razorpay_signature) {
+    const userId = req.userId;
+
+    // Create a new payment record
+    const newPayment = new PaymentModel({
+      userId,
+      amount, // You may want to save this in paise if you are storing it in cents or another unit
+    });
+
+    await newPayment.save();
+
+    // Respond with success
+    res.status(200).json({
+      success: true,
+      message: "Payment verified",
+      payment: newPayment,
+    });
+  } else {
+    // Payment verification failed
+    res
+      .status(400)
+      .json({ success: false, message: "Payment verification failed" });
   }
 };
 
@@ -104,4 +141,5 @@ module.exports = {
   buyOrder,
   getOrdersByUser,
   deleteOrder,
+  courseVerifyPayment,
 };
