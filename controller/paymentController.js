@@ -10,44 +10,62 @@ const razorpay = new Razorpay({
 
 // Check if the user has already made the payment today
 const checkPayment = async (req, res) => {
-  const userId = req.body.userId;
+  const userId = req.userId; // Get userId from the request object
 
   try {
-    const today = new Date().setHours(0, 0, 0, 0);
-    const payment = await PaymentModel.findOne({ userId, date: today });
+    // Find the user by userId
+    const user = await UserModel.findById(userId);
 
-    if (payment) {
-      return res.json({ payment: true });
-    } else {
-      return res.json({ payment: false });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
     }
+
+    // Check if the user's payment status is true
+    return res.json({ payment: user.payment });
   } catch (error) {
-    res.status(500).json({ error: "Server error while checking payment." });
+    console.error("Error checking payment:", error); // Log the error for debugging
+    return res
+      .status(500)
+      .json({ error: "Server error while checking payment." });
   }
 };
 
-// Create Razorpay order
 const createOrder = async (req, res) => {
-  const { amount } = req.body;
+  const { amount } = req.body; // Extract amount from the request body
+  const userId = req.userId; // Extract userId from the request
+
+  // Validate that amount is provided and is a positive number
+  if (!amount || amount <= 0) {
+    return res.status(400).json({ error: "A valid amount is required." });
+  }
+
+  // Validate that userId is provided
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required." });
+  }
 
   try {
     const options = {
-      amount: amount * 100, // Amount in paise (₹5 = 500 paise)
+      amount: amount * 100, // Convert amount to paise (e.g., ₹5 = 500 paise)
       currency: "INR",
-      receipt: `receipt_${Date.now()}`,
+      receipt: `receipt_${Date.now()}`, // Unique receipt identifier
     };
 
-    const order = await razorpay.orders.create(options);
-    res.json(order);
+    const order = await razorpay.orders.create(options); // Create the order in Razorpay
+
+    // Return the order along with the userId
+    res.json({ order, userId });
   } catch (error) {
+    console.error("Error creating order:", error); // Log the error for debugging
     res.status(500).json({ error: "Failed to create Razorpay order." });
   }
 };
 
 // Verify Razorpay payment and save it to the database
 const verifyPayment = async (req, res) => {
-  const { razorpay_order_id, razorpay_payment_id, razorpay_signature, userId } =
+  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
     req.body;
+  const userId = req.userId; // Extract userId from the request
 
   const secret = process.env.RAZORPAY_KEY_SECRET;
 
@@ -57,9 +75,10 @@ const verifyPayment = async (req, res) => {
 
   if (digest === razorpay_signature) {
     // Save payment to the database
+    const amount = req.body.amount; // Ensure amount is passed in the request body
     const newPayment = new PaymentModel({
       userId,
-      amount: 5, // ₹5 payment
+      amount, // Store the amount received in the request
     });
 
     try {
@@ -67,6 +86,7 @@ const verifyPayment = async (req, res) => {
       await UserModel.findByIdAndUpdate(userId, { payment: true });
       res.json({ success: true, message: "Payment verified and saved." });
     } catch (error) {
+      console.error(error); // Log the error for debugging
       res.status(500).json({ error: "Error saving payment." });
     }
   } else {
