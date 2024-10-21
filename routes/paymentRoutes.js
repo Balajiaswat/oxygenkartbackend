@@ -3,12 +3,15 @@ const {
   checkPayment,
   createOrder,
   verifyPayment,
+  getAllChatPayments,
 } = require("../controller/paymentController");
 const { auth } = require("../middleware/auth");
 const router = express.Router();
 
 // Check if payment is already made for the day
 router.get("/check-payment", auth, checkPayment);
+
+router.get("/get-All-payment", auth, getAllChatPayments);
 
 // Create Razorpay order
 router.post("/create-order", auth, createOrder);

@@ -8,6 +8,34 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
+const getAllChatPayments = async (req, res) => {
+  try {
+    const payments = await PaymentModel.find().populate({
+      path: "userId", // Populate the user details
+      select: "email username", // Select the fields to return
+    });
+
+    if (!payments || payments.length === 0) {
+      return res.status(404).json({ error: "No chat payments found" });
+    }
+
+    // Format the response to include the required fields, and convert amount from paisa to rupees
+    const formattedPayments = payments.map((payment) => ({
+      paymentId: payment._id, // Payment ID
+      email: payment.userId.email, // User email
+      username: payment.userId.username, // User username
+      amount: (payment.amount / 100).toFixed(2), // Convert paisa to rupees and keep 2 decimal places
+      date: payment.date, // Payment date
+    }));
+
+    // Send formatted payments as a response
+    res.status(200).json({ payments: formattedPayments });
+  } catch (error) {
+    console.error("Error fetching chat payments:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
 // Check if the user has already made the payment today
 const checkPayment = async (req, res) => {
   const userId = req.userId; // Get userId from the request object
@@ -94,4 +122,9 @@ const verifyPayment = async (req, res) => {
   }
 };
 
-module.exports = { checkPayment, createOrder, verifyPayment };
+module.exports = {
+  checkPayment,
+  createOrder,
+  verifyPayment,
+  getAllChatPayments,
+};
