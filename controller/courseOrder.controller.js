@@ -94,16 +94,35 @@ const courseVerifyPayment = async (req, res) => {
 
 const getOrdersByUser = async (req, res) => {
   try {
-    const userId = req.userId; // Ensure this is retrieved correctly
-    const orders = await CourseOrderModel.find({ userId })
-      .populate("courseId")
-      .exec();
+    // Fetch all course orders
+    const orders = await CourseOrderModel.find()
+      .populate({
+        path: "userId", // Populate the user details
+        select: "email username", // Select the fields to return
+      })
+      .populate({
+        path: "courseId", // Populate the course details
+        select: "title price video", // Select the fields to return
+      });
 
     if (!orders || orders.length === 0) {
       return res.status(404).json({ error: "No orders found" });
     }
 
-    res.status(200).json({ orders });
+    // Format the response to include the desired fields
+    const formattedOrders = orders.map((order) => ({
+      orderId: order._id, // Order ID
+      email: order.userId.email, // User's email
+      username: order.userId.username, // User's username
+      courseTitle: order.courseId.title, // Course title
+      price: order.courseId.price, // Course price
+      courseMedia: order.courseId.video, // Course media (e.g., video or image URL)
+      paymentSuccess: true, // Assuming payment success (adjust based on your data)
+      orderDate: order.orderDate, // Order date
+    }));
+
+    // Send the formatted orders as a response
+    res.status(200).json({ orders: formattedOrders });
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ error: "Server error" });
