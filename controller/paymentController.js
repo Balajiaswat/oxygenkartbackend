@@ -2,6 +2,7 @@ const Razorpay = require("razorpay");
 const PaymentModel = require("../model/Payment");
 const UserModel = require("../model/userModel");
 const crypto = require("crypto");
+const CourseOrderModel = require("../model/CourseOrder");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -33,6 +34,53 @@ const getAllChatPayments = async (req, res) => {
   } catch (error) {
     console.error("Error fetching chat payments:", error);
     res.status(500).json({ error: "Server error" });
+  }
+};
+
+const combinePayment = async (req, res) => {
+  try {
+    // Fetch all payments
+    const payments = await PaymentModel.find()
+      .populate("userId") // Populate user data if needed
+      .sort({ date: -1 }); // Sort payments by date descending
+
+    // Fetch all course orders
+    const courseOrders = await CourseOrderModel.find()
+      .populate("userId") // Populate user data if needed
+      .populate("courseId") // Populate course data if needed
+      .sort({ orderDate: -1 }); // Sort course orders by orderDate descending
+
+    // Combine both payments and course orders
+    const combined = [
+      ...payments.map((payment) => ({
+        type: "Chat", // Renamed from "payment" to "Chat"
+        id: payment._id,
+        userId: payment.userId,
+        date: payment.date,
+        amount: payment.amount,
+      })),
+      ...courseOrders.map((order) => ({
+        type: "CourseOrder", // Renamed from "courseOrder" to "CourseOrder"
+        id: order._id,
+        userId: order.userId,
+        date: order.orderDate,
+        courseId: order.courseId,
+        // Assuming you have a price field in your CourseOrderModel
+        amount: order.price || 0, // Default to 0 if no price field exists
+      })),
+    ];
+
+    // Sort combined data by date descending
+    combined.sort((a, b) => b.date - a.date);
+
+    // Optional: Limit the number of records to the latest N (e.g., 5)
+    // const limit = 5; // Change this value to the desired number of latest records
+    // const latestCombined = combined.slice(0, limit);
+
+    res.status(200).json(combined);
+  } catch (error) {
+    console.error("Error fetching combined data:", error);
+    res.status(500).json({ message: "Error fetching combined data" });
   }
 };
 
@@ -127,4 +175,5 @@ module.exports = {
   createOrder,
   verifyPayment,
   getAllChatPayments,
+  combinePayment,
 };

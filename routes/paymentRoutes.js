@@ -4,6 +4,7 @@ const {
   createOrder,
   verifyPayment,
   getAllChatPayments,
+  combinePayment,
 } = require("../controller/paymentController");
 const { auth } = require("../middleware/auth");
 const router = express.Router();
@@ -12,6 +13,8 @@ const router = express.Router();
 router.get("/check-payment", auth, checkPayment);
 
 router.get("/get-All-payment", auth, getAllChatPayments);
+
+router.get("/combine", auth, combinePayment);
 
 // Create Razorpay order
 router.post("/create-order", auth, createOrder);

@@ -8,6 +8,7 @@ const notifiRoute = require("./routes/notification.routes");
 const courseOrderRoute = require("./routes/courseOrder.routes");
 const contactUsRoute = require("./routes/contact.routes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const loginRoute = require("./routes/loginUser.routes");
 
 const app = express();
 app.use(cors());
@@ -39,6 +40,7 @@ app.use("/notification", notifiRoute);
 app.use("/courseOrder", courseOrderRoute);
 app.use("/contactus", contactUsRoute);
 app.use("/payment", paymentRoutes);
+app.use("/loggedInUser", loginRoute);
 
 app.listen(8080, async () => {
   try {
