@@ -3,6 +3,7 @@ const PaymentModel = require("../model/Payment");
 const UserModel = require("../model/userModel");
 const crypto = require("crypto");
 const CourseOrderModel = require("../model/CourseOrder");
+const cron = require("node-cron");
 
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
@@ -117,6 +118,16 @@ const getTimeToday = (hour, minute) => {
     minute
   );
 };
+
+cron.schedule("0 0 * * *", async () => {
+  try {
+    // Update all users' payment status to false
+    await UserModel.updateMany({ payment: true }, { payment: false });
+    console.log("Payment status reset for all users.");
+  } catch (error) {
+    console.error("Error resetting payment status:", error);
+  }
+});
 
 const createOrder = async (req, res) => {
   const { amount } = req.body; // Extract amount from the request body
