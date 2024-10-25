@@ -106,9 +106,34 @@ const checkPayment = async (req, res) => {
   }
 };
 
+// Helper function to get today's date with a specific time
+const getTimeToday = (hour, minute) => {
+  const now = new Date();
+  return new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hour,
+    minute
+  );
+};
+
 const createOrder = async (req, res) => {
   const { amount } = req.body; // Extract amount from the request body
   const userId = req.userId; // Extract userId from the request
+
+  // Define the allowed order creation time range: 9:00 AM to 3:30 PM IST
+  const startTime = getTimeToday(9, 0); // 9:00 AM IST
+  const endTime = getTimeToday(15, 30); // 3:30 PM IST
+
+  const now = new Date();
+
+  // Check if the current time is outside the allowed range
+  if (now < startTime || now > endTime) {
+    return res.status(403).json({
+      msg: "Order creation is only allowed between 9:00 AM and 3:30 PM IST",
+    });
+  }
 
   // Validate that amount is provided and is a positive number
   if (!amount || amount <= 0) {
