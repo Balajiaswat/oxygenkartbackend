@@ -119,15 +119,19 @@ const checkPayment = async (req, res) => {
 //   );
 // };
 
-cron.schedule("0 0 * * *", async () => {
+async function resetPaymentStatus() {
+  console.log("Cron job initiated at midnight to reset payment status.");
   try {
-    // Update all users' payment status to false
+    // Update all users' payment status to false every day at midnight
     await UserModel.updateMany({ payment: true }, { payment: false });
-    console.log("Payment status reset for all users.");
+    console.log("Payment status reset to false for all users.");
   } catch (error) {
     console.error("Error resetting payment status:", error);
   }
-});
+}
+
+// Schedule the cron job to run every day at midnight (00:00)
+cron.schedule("0 0 * * *", resetPaymentStatus);
 
 const createOrder = async (req, res) => {
   const { amount } = req.body; // Extract amount from the request body
